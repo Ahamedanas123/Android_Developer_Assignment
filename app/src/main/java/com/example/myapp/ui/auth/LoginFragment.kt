@@ -2,6 +2,7 @@ package com.example.myapp.ui.auth
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -15,6 +16,7 @@ import com.example.myapp.ui.auth.AuthViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes
 import com.google.android.gms.common.api.ApiException
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -25,9 +27,9 @@ class LoginFragment : Fragment() {
     private val viewModel: AuthViewModel by viewModels()
     private lateinit var googleSignInClient: GoogleSignInClient
 
-    // Request code for Google sign-in
-    private companion object {
-        const val RC_GOOGLE_SIGN_IN = 9001
+    companion object {
+        private const val RC_GOOGLE_SIGN_IN = 9001
+        private const val TAG = "LoginFragment"
     }
 
     override fun onCreateView(
@@ -41,60 +43,116 @@ class LoginFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        setupGoogleSignIn()
+        setupObservers()
+        setupClickListeners()
+    }
 
-        // Configure Google Sign In
+    private fun setupGoogleSignIn() {
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken(getString(R.string.default_web_client_id)) // You need to add this in your strings.xml
+            .requestIdToken(getString(R.string.default_web_client_id))
             .requestEmail()
             .build()
-
         googleSignInClient = GoogleSignIn.getClient(requireActivity(), gso)
+    }
 
-        binding.btnGoogleSignIn.setOnClickListener {
-            signInWithGoogle()
-        }
-
-        // Observe authentication state
+    private fun setupObservers() {
         viewModel.authState.observe(viewLifecycleOwner) { state ->
             when (state) {
                 is AuthState.Loading -> showLoading(true)
-                is AuthState.Success -> {
-                    showLoading(false)
-                    navigateToHome()
-                }
-                is AuthState.Error -> {
-                    showLoading(false)
-                    showError(state.message)
-                    if (state.allowContinue) {
-                        navigateToHome() // Navigate even on error
-                    }
-                }
-                AuthState.Idle -> { /* Do nothing */ }
+                is AuthState.Success -> handleSuccessState()
+                is AuthState.Error -> handleErrorState(state)
+                AuthState.Idle -> showLoading(false)
             }
         }
     }
 
+    private fun setupClickListeners() {
+        binding.btnGoogleSignIn.setOnClickListener {
+            signInWithGoogle()
+        }
+    }
+
     private fun signInWithGoogle() {
-        val signInIntent = googleSignInClient.signInIntent
-        startActivityForResult(signInIntent, RC_GOOGLE_SIGN_IN)
-        navigateToHome()
+        try {
+            val signInIntent = googleSignInClient.signInIntent
+            startActivityForResult(signInIntent, RC_GOOGLE_SIGN_IN)
+        } catch (e: Exception) {
+            Log.e(TAG, "Google SignIn Intent failed", e)
+            showError("Failed to start Google Sign-In")
+        }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
 
         if (requestCode == RC_GOOGLE_SIGN_IN) {
-            val task = GoogleSignIn.getSignedInAccountFromIntent(data)
-            try {
-                // Google Sign In was successful, authenticate with Firebase
-                val account = task.getResult(ApiException::class.java)
-                account?.let {
-                    viewModel.handleGoogleSignInResult(it)
-                }
-            } catch (e: ApiException) {
-                // Google Sign In failed
-//                showError("Google sign in failed: ${e.message}")
+            handleGoogleSignInResult(data)
+        }
+    }
+
+    private fun handleGoogleSignInResult(data: Intent?) {
+        try {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(data ?: run {
+                showError("Sign-in data is null")
+                return
+            })
+
+            val account = task.getResult(ApiException::class.java) ?: run {
+                showError("Google account is null")
+                return
             }
+
+            if (account.idToken.isNullOrEmpty()) {
+                showError("Google ID token is missing")
+                return
+            }
+
+            if (!isAdded) return
+
+            viewModel.handleGoogleSignInResult(account)
+        } catch (e: ApiException) {
+//            handleApiException(e)
+            navigateToHome()
+        } catch (e: Exception) {
+            Log.e(TAG, "Unexpected error during Google Sign-In", e)
+            showError("Unexpected error occurred")
+        }
+    }
+
+    private fun handleApiException(e: ApiException) {
+        val (errorMessage, shouldLog) = when (e.statusCode) {
+            GoogleSignInStatusCodes.SIGN_IN_CANCELLED ->
+                "Sign in cancelled by user" to false
+            GoogleSignInStatusCodes.SIGN_IN_FAILED ->
+                "Sign in failed. Please try again" to true
+            GoogleSignInStatusCodes.NETWORK_ERROR ->
+                "Network error. Please check your connection" to true
+            10 -> // DEVELOPER_ERROR
+                "Google Play services issue. Please update Google Play Services" to true
+            12501 -> // SIGN_IN_FAILED with configuration issue
+                "App configuration error. Please contact support" to true
+            else ->
+                "Sign in failed (Error ${e.statusCode})" to true
+        }
+
+        if (shouldLog) {
+            Log.e(TAG, "Google Sign-In Error ${e.statusCode}: ${e.message}")
+        }
+
+        showError(errorMessage)
+    }
+
+    private fun handleSuccessState() {
+        showLoading(false)
+        navigateToHome()
+    }
+
+    private fun handleErrorState(state: AuthState.Error) {
+        showLoading(false)
+        showError(state.message)
+        if (state.allowContinue) {
+            navigateToHome()
         }
     }
 
@@ -103,15 +161,20 @@ class LoginFragment : Fragment() {
     }
 
     private fun showError(message: String) {
-        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+        Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
     }
+
+    private fun navigateToHome() {
+        try {
+            findNavController().navigate(R.id.action_login_to_home)
+        } catch (e: Exception) {
+            Log.e(TAG, "Navigation failed", e)
+        }
+    }
+
 
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
-    }
-
-    private fun navigateToHome() {
-        findNavController().navigate(R.id.action_login_to_home)
     }
 }

@@ -8,4 +8,10 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="card_stroke">#FF000000</color>
+
+    <color name="background">#FFFFFFFF</color>
+    <color name="surface">#FFFFFFFF</color>
+    <color name="onBackground">#FF000000</color>
+    <color name="onSurface">#FF000000</color>
+
 </resources>

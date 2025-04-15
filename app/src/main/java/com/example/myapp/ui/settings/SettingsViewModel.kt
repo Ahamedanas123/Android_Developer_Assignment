@@ -1,10 +1,15 @@
 package com.example.myapp.ui.settings
 
 
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
 import com.example.myapp.data.repository.AppRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -12,11 +17,12 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val repository: AppRepository
 ) : ViewModel() {
-    val notificationsEnabled = repository.notificationsEnabled
+    // Change to LiveData
+    val isDarkTheme: LiveData<Boolean> = repository.isDarkTheme.asLiveData()
 
-    fun setNotificationsEnabled(enabled: Boolean) {
+    fun setDarkThemeEnabled(enabled: Boolean) {
         viewModelScope.launch {
-            repository.setNotificationsEnabled(enabled)
+            repository.setDarkThemeEnabled(enabled)
         }
     }
 }

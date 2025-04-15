@@ -5,10 +5,10 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "users")
 data class UserEntity(
-    @PrimaryKey
-    val uid: String,  // Changed from 'id' to 'uid' to match Firebase
-    val name: String?,
-    val email: String?,
-    val photoUrl: String?,  // Changed from 'profilePicture' to 'photoUrl'
-    val lastLogin: Long = System.currentTimeMillis()
+    @PrimaryKey val uid: String,
+    val name: String,
+    val email: String,
+    val photoUrl: String,
+    val isLoggedIn: Boolean = false,  // To track login state
+    val loginTimestamp: Long = System.currentTimeMillis()
 )

@@ -1,6 +1,8 @@
 package com.example.myapp.di
 
 import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import com.example.myapp.data.local.dao.ApiObjectDao
 import com.example.myapp.data.local.dao.UserDao
 import com.example.myapp.data.remote.ApiService
@@ -37,9 +39,10 @@ object AppModule {
         apiService: ApiService,
         apiObjectDao: ApiObjectDao,
         userDao: UserDao,
-        @ApplicationContext context: Context
+        @ApplicationContext context: Context,
+        dataStore: DataStore<Preferences>
     ): AppRepository {
-        return AppRepository(apiService, apiObjectDao, userDao, context)
+        return AppRepository(apiService, apiObjectDao, userDao, context,dataStore)
     }
 
     @Provides

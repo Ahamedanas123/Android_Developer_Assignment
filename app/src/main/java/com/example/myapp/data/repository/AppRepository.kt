@@ -28,22 +28,11 @@ class AppRepository @Inject constructor (
     private val apiService: ApiService,
     private val apiObjectDao: ApiObjectDao,
     private val userDao: UserDao,
-    private val context: Context
+    private val context: Context,
+    private val dataStore: DataStore<Preferences>
 ) {
     private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
-    // User operations
-    suspend fun saveUser(user: FirebaseUser) {
-        userDao.insertOrUpdate(
-            UserEntity(
-                uid = user.uid,
-                name = user.displayName,
-                email = user.email,
-                photoUrl = user.photoUrl?.toString()
-                // lastLogin will use default value
-            )
-        )
-    }
 
     // API object operations
     suspend fun fetchObjects() {
@@ -85,16 +74,35 @@ class AppRepository @Inject constructor (
     }
 
     // Settings
-    suspend fun setNotificationsEnabled(enabled: Boolean) {
-        context.dataStore.edit { settings ->
-            settings[NOTIFICATIONS_KEY] = enabled
-        }
-    }
+//    suspend fun setNotificationsEnabled(enabled: Boolean) {
+//        context.dataStore.edit { settings ->
+//            settings[NOTIFICATIONS_KEY] = enabled
+//        }
+//    }
 
-    val notificationsEnabled: Flow<Boolean> = context.dataStore.data
-        .map { preferences -> preferences[NOTIFICATIONS_KEY] ?: true }
+//    val notificationsEnabled: Flow<Boolean> = context.dataStore.data
+//        .map { preferences -> preferences[NOTIFICATIONS_KEY] ?: true }
+
+//    companion object {
+//        private val NOTIFICATIONS_KEY = booleanPreferencesKey("notifications_enabled")
+//    }
+
+
+
 
     companion object {
-        private val NOTIFICATIONS_KEY = booleanPreferencesKey("notifications_enabled")
+        val DARK_THEME_KEY = booleanPreferencesKey("dark_theme_enabled")
+    }
+
+    // Change to Flow
+    val isDarkTheme: Flow<Boolean> = dataStore.data
+        .map { preferences ->
+            preferences[DARK_THEME_KEY] ?: false
+        }
+
+    suspend fun setDarkThemeEnabled(enabled: Boolean) {
+        dataStore.edit { settings ->
+            settings[DARK_THEME_KEY] = enabled
+        }
     }
 }
