@@ -30,4 +30,11 @@ This is an Android application developed as part of an Android Developer Assignm
 ## 🚀 Getting Started
 
 1. **Clone the repository:**
+    https://github.com/Ahamedanas123/Android_Developer_Assignment.git
+
+
+For any queries, reach out to Ahamed Anas Ali A
+📧 ahamedanasali0@gmail.com
+
+
    
